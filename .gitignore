@@ -1,0 +1,29 @@
+# 环境与密钥（但保留模板 .env.example）
+.env
+.env.*
+!.env.example
+
+# 虚拟环境
+.venv/
+venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 数据库与数据产物
+data/*.db
+*.db
+*.sqlite3
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db
