@@ -1,6 +1,12 @@
-# AI 抽取与 FastAPI 服务依赖
-openai==3.16.2
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
-pydantic==2.13.5
-python-dotenv==1.2.3
+﻿fastapi
+uvicorn[standard]
+python-multipart
+beautifulsoup4
+lxml
+pdfplumber
+python-docx
+openpyxl
+pandas
+neo4j
+httpx
+python-dotenv
