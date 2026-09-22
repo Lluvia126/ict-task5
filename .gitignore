@@ -18,6 +18,16 @@ data/*.db
 *.db
 *.sqlite3
 
+# 官方原始数据与实验结果（不提交，仅保留本地）
+ai_extraction/data/validation/
+ai_extraction/data/baseline_input/
+ai_extraction/data/baseline_output/
+
+# 前端依赖与构建产物
+node_modules/
+dist/
+dist-ssr/
+
 # IDE / 编辑器
 .vscode/
 .idea/
