@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# AI 抽取服务（刘的 HTTP 服务）
+# AI 抽取服务
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:8000")
 
 # 下面几项暂时用不到，先留占位，后面配 .env 再启用

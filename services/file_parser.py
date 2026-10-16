@@ -489,3 +489,52 @@ def parse_file(
     result.setdefault("tables", [])
     result["format"] = real_format
     return result
+
+def parse_zip_structured(path: str | Path) -> list:
+    """
+    解析 ZIP，按附件文件分组返回。
+    返回：[{"filename": "xx.pdf", "text": "...", "tables": [...]}, ...]
+    filename 是纯文件名（带扩展名），不带路径。
+    """
+    extract_dir = Path(path).with_suffix("")
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(path, "r") as zf:
+            _safe_extract(zf, extract_dir)
+    except Exception as e:
+        return [{"filename": Path(path).name, "text": f"[ZIP解压失败: {e}]", "tables": []}]
+
+    attachments = []
+    files = [
+        f for f in extract_dir.rglob("*")
+        if f.is_file()
+        and not f.name.startswith(".")
+        and "__MACOSX" not in f.parts
+    ]
+    files.sort(key=lambda f: f.name)   # 按文件名升序，和训练一致
+
+    for f in files:
+        try:
+            result = parse_file(str(f), f.name)
+            attachments.append({
+                "filename": f.name,
+                "text": result.get("text", ""),
+                "tables": result.get("tables", []),
+            })
+        except Exception as e:
+            attachments.append({
+                "filename": f.name,
+                "text": f"[解析失败: {e}]",
+                "tables": [],
+            })
+    return attachments
+
+def read_html_raw(path: str | Path) -> str:
+    """
+    读取原始 HTML 字符串（含标签），不做任何清洗。
+    给 AI 侧 preprocess_text 用，和训练输入保持一致。
+    """
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return ""

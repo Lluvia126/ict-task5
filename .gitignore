@@ -27,3 +27,13 @@ data/*.db
 # 操作系统
 .DS_Store
 Thumbs.db
+
+# 项目数据目录（追加）
+data/uploads/*
+data/results/*
+!data/uploads/.gitkeep
+!data/results/.gitkeep
+
+# 运行期生成的状态文件
+data/counter.json
+data/.tmp/
