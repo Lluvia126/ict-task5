@@ -28,6 +28,8 @@ app.add_middleware(
     allow_credentials=CORS_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    # 前后端不同域名时，浏览器默认读不到下载文件名，需要显式暴露
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(upload.router)

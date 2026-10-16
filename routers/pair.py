@@ -24,7 +24,7 @@ from services.security import (
     check_upload,
     protect,
 )
-from services.storage import save_extraction
+from services.storage import get_extraction, get_extraction_by_file_id, save_extraction
 
 router = APIRouter(prefix="/api", tags=["pair"])
 
@@ -95,7 +95,19 @@ async def upload_pair(
 
 @router.get("/pairs")
 def api_list_pairs(limit: int = 100):
-    return {"count": len(list_pairs(limit)), "items": list_pairs(limit)}
+    """配对列表。extraction_ready=True 的配对才有导出结果（GET /api/export/{pair_id} 可 200）。"""
+    items = list_pairs(limit)
+    for item in items:
+        announcement_id = (item.get("announcement_id") or "").strip()
+        item["extraction_ready"] = bool(
+            (announcement_id and get_extraction(announcement_id))
+            or get_extraction_by_file_id(item.get("html_file_id") or "")
+        )
+    return {
+        "count": len(items),
+        "export_ready_count": sum(1 for item in items if item["extraction_ready"]),
+        "items": items,
+    }
 
 
 @router.post("/parse-pair/{pair_id}", response_model=ParsedPair,
