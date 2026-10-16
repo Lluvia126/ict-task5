@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List
 
 from services import graph_queries as gq
+from services import graph_sync
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -64,6 +65,24 @@ def api_common_projects(names: List[str] = Query(..., description="供应商名�
         raise HTTPException(status_code=400, detail="至少需要 2 个供应商")
     rows = gq.common_projects(names)
     return {"suppliers": names, "count": len(rows), "items": rows}
+
+
+@router.get("/graph/status")
+def api_graph_status():
+    """图谱是否与当前抽取数据一致：in_sync / missing_in_graph / stale_in_graph / 上次同步时间。"""
+    return graph_sync.status()
+
+
+@router.post("/graph/sync")
+def api_graph_sync(
+    mode: str = Query("incremental", description="incremental=增量补差；rebuild=清空图谱后按抽取结果重建"),
+):
+    """手动同步图谱（抽取/删除时会自动同步，这里用于修复不一致或清除历史演示数据）。"""
+    if mode not in ("incremental", "rebuild"):
+        raise HTTPException(status_code=400, detail="不支持的 mode=%s，可选 incremental/rebuild" % mode)
+    if mode == "rebuild":
+        return graph_sync.rebuild_all()
+    return graph_sync.sync_all()
 
 
 @router.get("/graph/overview")
