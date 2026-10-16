@@ -1,4 +1,4 @@
-﻿fastapi
+fastapi
 uvicorn[standard]
 python-multipart
 beautifulsoup4
@@ -10,3 +10,5 @@ pandas
 neo4j
 httpx
 python-dotenv
+# AI 抽取服务同机部署时需要（调用 Qwen 兼容接口）
+openai

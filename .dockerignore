@@ -1,0 +1,16 @@
+# 不进镜像：本地环境与数据（数据走 volume 挂载）
+.venv/
+venv/
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.env
+dist/
+logs/
+data/
+test_data/official_samples/
+示例数据/
+docs/
+*.md
+*.zip
