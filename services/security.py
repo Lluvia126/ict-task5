@@ -22,6 +22,12 @@ from typing import Callable, Optional
 
 from fastapi import Header, HTTPException, Request
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()          # 兜底：直接 import 本模块时也先读 .env
+except ImportError:
+    pass
+
 from services import storage
 
 # ---------------- 配置 ----------------

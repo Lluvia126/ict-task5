@@ -1,5 +1,11 @@
 import os
 
+try:                       # 必须最先执行：security 等模块在 import 时就读环境变量
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -37,6 +43,19 @@ app.include_router(extract.router)
 app.include_router(analysis.router)
 app.include_router(pair.router)
 app.include_router(export.router)
+
+
+@app.get("/", include_in_schema=False)
+def service_card():
+    """根路径：给公网访问者一个明确回应（便于连通性测试）。"""
+    return {
+        "service": "行业数据智能分析引擎 - 后端 API",
+        "version": app.version,
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/api/health",
+        "hint": "前端页面请访问前端部署地址；本地址提供 API 与接口文档。",
+    }
 
 
 @app.exception_handler(GraphUnavailable)
