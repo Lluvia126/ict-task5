@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,6 +8,7 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
 from routers import upload, extract, analysis, pair, export
+from services import security
 from services.graph_queries import GraphUnavailable
 
 app = FastAPI(
@@ -15,10 +18,14 @@ app = FastAPI(
     redoc_url=None,
 )
 
+# 跨域白名单：公网部署时用 ALLOWED_ORIGINS 指定前端地址（逗号分隔），
+# 只有配置为 "*" 时才放开所有来源（本地联调），此时不再允许携带凭证。
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS or ["*"],
+    allow_credentials=CORS_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,7 +51,12 @@ async def graph_unavailable_handler(request, exc):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "procurement-engine"}
+    """探活接口（免登录、只读），顺带返回当前安全配置摘要（不含口令）。"""
+    return {
+        "status": "ok",
+        "service": "procurement-engine",
+        "security": security.describe(),
+    }
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

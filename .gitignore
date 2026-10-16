@@ -37,3 +37,6 @@ data/results/*
 # 运行期生成的状态文件
 data/counter.json
 data/.tmp/
+data/backups/
+logs/
+dist/

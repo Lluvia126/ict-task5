@@ -1,10 +1,11 @@
 """任务二：五大业务查询 API。"""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 
 from services import graph_queries as gq
 from services import graph_sync
+from services.security import protect
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -73,7 +74,7 @@ def api_graph_status():
     return graph_sync.status()
 
 
-@router.post("/graph/sync")
+@router.post("/graph/sync", dependencies=[Depends(protect("graph-sync", allow_anon=False))])
 def api_graph_sync(
     mode: str = Query("incremental", description="incremental=增量补差；rebuild=清空图谱后按抽取结果重建"),
 ):

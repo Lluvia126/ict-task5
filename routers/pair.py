@@ -1,6 +1,6 @@
 """公告 + 附件 成对处理 API。"""
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pathlib import Path
 
 from models.schemas import PairUploadResponse, ParsedPair, ExtractionResult
@@ -14,6 +14,16 @@ from services.id_gen import next_announcement_id
 from services.ai_adapter import extract as ai_extract
 from services.export_service import enrich_extraction
 from services import graph_sync
+from services.security import (
+    ALLOW_ANON_EXTRACT,
+    ALLOW_ANON_UPLOAD,
+    QUOTA_EXTRACT_GLOBAL_DAY,
+    QUOTA_EXTRACT_PER_IP_DAY,
+    QUOTA_PARSE_PER_IP_DAY,
+    QUOTA_UPLOAD_PER_IP_DAY,
+    check_upload,
+    protect,
+)
 from services.storage import save_extraction
 
 router = APIRouter(prefix="/api", tags=["pair"])
@@ -37,7 +47,13 @@ def _merge_texts(html_text: str, attachment_text: str) -> str:
     return f"{attachment_text}\n\n{html_text}"
 
 
-@router.post("/upload-pair", response_model=PairUploadResponse)
+@router.post("/upload-pair", response_model=PairUploadResponse,
+             dependencies=[Depends(protect(
+                 "upload",
+                 allow_anon=ALLOW_ANON_UPLOAD,
+                 per_ip_day=QUOTA_UPLOAD_PER_IP_DAY,
+                 check_size=True,
+             ))])
 async def upload_pair(
     html_file: UploadFile = File(..., description="公告 HTML"),
     zip_file: UploadFile = File(None, description="附件 ZIP（可选）"),
@@ -46,8 +62,7 @@ async def upload_pair(
         raise HTTPException(status_code=400, detail="HTML 文件名不能为空")
 
     html_content = await html_file.read()
-    if not html_content:
-        raise HTTPException(status_code=400, detail="HTML 内容为空")
+    check_upload(html_file.filename, len(html_content))
     html_info = save_upload(html_file.filename, html_content)
 
     zip_file_id = ""
@@ -55,6 +70,7 @@ async def upload_pair(
     if zip_file and zip_file.filename:
         zip_content = await zip_file.read()
         if zip_content:
+            check_upload(zip_file.filename, len(zip_content))
             zip_info = save_upload(zip_file.filename, zip_content)
             zip_file_id = zip_info["file_id"]
             zip_filename = zip_file.filename
@@ -82,7 +98,8 @@ def api_list_pairs(limit: int = 100):
     return {"count": len(list_pairs(limit)), "items": list_pairs(limit)}
 
 
-@router.post("/parse-pair/{pair_id}", response_model=ParsedPair)
+@router.post("/parse-pair/{pair_id}", response_model=ParsedPair,
+             dependencies=[Depends(protect("parse", True, per_ip_day=QUOTA_PARSE_PER_IP_DAY))])
 def parse_pair(pair_id: str):
     pair = get_pair(pair_id)
     if not pair:
@@ -136,7 +153,13 @@ def parse_pair(pair_id: str):
     )
 
 
-@router.post("/extract-pair/{pair_id}", response_model=ExtractionResult)
+@router.post("/extract-pair/{pair_id}", response_model=ExtractionResult,
+             dependencies=[Depends(protect(
+                 "extract",
+                 allow_anon=ALLOW_ANON_EXTRACT,
+                 per_ip_day=QUOTA_EXTRACT_PER_IP_DAY,
+                 global_day=QUOTA_EXTRACT_GLOBAL_DAY,
+             ))])
 def extract_pair(pair_id: str):
     pair = get_pair(pair_id)
     if not pair:

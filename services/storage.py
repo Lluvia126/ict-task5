@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -32,6 +33,16 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS quotas (
+            bucket TEXT,
+            key TEXT,
+            window TEXT,
+            count INTEGER DEFAULT 0,
+            PRIMARY KEY (bucket, key, window)
+        )
+    """)
+    conn.execute("DELETE FROM quotas WHERE window < ?", (_day(-7),))
     conn.commit()
     conn.close()
 
@@ -170,3 +181,41 @@ def update_graph_state(patch: dict = None, **kwargs) -> dict:
     conn.commit()
     conn.close()
     return state
+
+
+# ---------------- 调用配额（公网防护，见 services/security.py） ----------------
+
+def _day(offset: int = 0) -> str:
+    return (datetime.now() + timedelta(days=offset)).strftime("%Y-%m-%d")
+
+
+def hit_quota(bucket: str, key: str, kind: str = "day", limit: int = 0) -> dict:
+    """计数 +1 并判断是否超限；kind=day/hour，用于按 IP / 全局限制调用次数。"""
+    now = datetime.now()
+    window = now.strftime("%Y-%m-%dT%H") if kind == "hour" else now.strftime("%Y-%m-%d")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        """INSERT INTO quotas (bucket, key, window, count) VALUES (?, ?, ?, 1)
+           ON CONFLICT(bucket, key, window) DO UPDATE SET count = count + 1""",
+        (bucket, key, window),
+    )
+    row = conn.execute(
+        "SELECT count FROM quotas WHERE bucket = ? AND key = ? AND window = ?",
+        (bucket, key, window),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    count = row[0] if row else 0
+    return {"allowed": count <= limit, "count": count, "limit": limit, "window": window}
+
+
+def quota_usage(bucket: str) -> list:
+    """当前窗口内的配额使用情况（自检/排查用）。"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT bucket, key, window, count FROM quotas WHERE bucket = ? ORDER BY count DESC",
+        (bucket,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
