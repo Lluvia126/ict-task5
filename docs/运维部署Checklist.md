@@ -116,8 +116,28 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 - [ ] `sudo systemctl daemon-reload && sudo systemctl enable --now ict-task5`
-- [ ] （可选，AI 同机部署）再建一个 `ict-task5-ai.service`，只改两处：
-      `ExecStart=.../uvicorn ai_extraction.api:app --host 127.0.0.1 --port 8001`
+- [ ] **AI 抽取服务（同机部署，必做）**：新建 `/etc/systemd/system/ict-task5-ai.service`
+```ini
+[Unit]
+Description=ICT Task5 AI extraction (Qwen)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/ict-task5
+EnvironmentFile=/opt/ict-task5/.env
+ExecStart=/opt/ict-task5/.venv/bin/python -m uvicorn ai_extraction1.api:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+- [ ] `sudo systemctl daemon-reload && sudo systemctl enable --now ict-task5-ai`
+- [ ] 验证：`curl -s localhost:8001/health` → `"qwen_api_key_configured":true`
+
+【AI 验收】`curl -s localhost:8000/api/ai/health` → `"ok":true`，且 body 内 `qwen_api_key_configured:true`
 
 【验收】`systemctl status ict-task5 --no-pager` → `active (running)`；
 重启机器后 `curl -s localhost:8000/api/health` 仍然 200

@@ -5,6 +5,7 @@ param(
     [int]$Port = 8000,
     [string]$Cloudflared = "D:\tools\cloudflared\cloudflared.exe",
     [switch]$SkipNeo4j,
+    [switch]$SkipAI,
     [switch]$StatusOnly
 )
 
@@ -36,6 +37,7 @@ function Test-Proc([string]$name) {
 
 if ($StatusOnly) {
     Write-Host "[状态] 后端端口 $Port 监听中: $(Test-Port $Port)"
+    Write-Host "[状态] AI 服务(8001)监听中: $(Test-Port 8001)"
     Write-Host "[状态] cloudflared 运行中: $(Test-Proc 'cloudflared')"
     Write-Host "[状态] 公网地址: $(Get-TunnelUrl)"
     exit 0
@@ -56,15 +58,15 @@ if (Test-Path $envFile) {
 
 # 1) 图数据库
 if (-not $SkipNeo4j) {
-    Write-Host "[1/3] 启动 Neo4j ..."
+    Write-Host "[1/4] 启动 Neo4j ..."
     docker start neo4j | Out-Null
 }
 
 # 2) 后端（只监听本机，生产不带 --reload）
 if (Test-Port $Port) {
-    Write-Host "[2/3] 端口 $Port 已在监听，跳过启动后端"
+    Write-Host "[2/4] 端口 $Port 已在监听，跳过启动后端"
 } else {
-    Write-Host "[2/3] 启动后端 (127.0.0.1:$Port) ..."
+    Write-Host "[2/4] 启动后端 (127.0.0.1:$Port) ..."
     Start-Process -FilePath (Join-Path $root ".venv\Scripts\python.exe") `
         -ArgumentList "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "$Port" `
         -WorkingDirectory $root -WindowStyle Hidden `
@@ -78,11 +80,36 @@ if (Test-Port $Port) {
     else { Write-Warning "      后端 20 秒内未就绪，请看 logs\uvicorn.err.log"; exit 1 }
 }
 
-# 3) 隧道（校园网常封 UDP 7844，用 HTTP/2 走 443）
-if (Test-Proc "cloudflared") {
-    Write-Host "[3/3] cloudflared 已在运行"
+# 3) AI 抽取服务（Qwen，监听本机 8001）
+if ($SkipAI) {
+    Write-Host "[3/4] 跳过 AI 服务"
+} elseif (Test-Port 8001) {
+    Write-Host "[3/4] AI 服务(8001)已在运行"
 } else {
-    Write-Host "[3/3] 建立 Cloudflare 隧道 ..."
+    Write-Host "[3/4] 启动 AI 抽取服务 (127.0.0.1:8001) ..."
+    $envText = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
+    if ($envText -notmatch "(?m)^QWEN_API_KEY=\S") {
+        Write-Warning "      .env 里 QWEN_API_KEY 为空，AI 服务能启动但抽取会返回 503"
+    }
+    Start-Process -FilePath (Join-Path $root ".venv\Scripts\python.exe") `
+        -ArgumentList "-m", "uvicorn", "ai_extraction1.api:app", "--host", "127.0.0.1", "--port", "8001" `
+        -WorkingDirectory $root -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $logDir "ai.out.log") `
+        -RedirectStandardError  (Join-Path $logDir "ai.err.log") | Out-Null
+    for ($i = 1; $i -le 15; $i++) {
+        Start-Sleep -Seconds 1
+        try { $ai = Invoke-RestMethod "http://127.0.0.1:8001/health" -TimeoutSec 3; break } catch { }
+    }
+    if ($ai) {
+        Write-Host "      AI 就绪：key 已配置=$($ai.qwen_api_key_configured) 模型=$($ai.model)"
+    } else { Write-Warning "      AI 服务 15 秒内未就绪，请看 logs\ai.err.log" }
+}
+
+# 4) 隧道（校园网常封 UDP 7844，用 HTTP/2 走 443）
+if (Test-Proc "cloudflared") {
+    Write-Host "[4/4] cloudflared 已在运行"
+} else {
+    Write-Host "[4/4] 建立 Cloudflare 隧道 ..."
     if (-not (Test-Path $Cloudflared)) { Write-Warning "  找不到 $Cloudflared，请先下载 cloudflared.exe"; exit 1 }
     Start-Process -FilePath $Cloudflared `
         -ArgumentList "tunnel", "--url", "http://127.0.0.1:$Port", "--protocol", "http2", "--logfile", $tunnelLog, "--loglevel", "info" `

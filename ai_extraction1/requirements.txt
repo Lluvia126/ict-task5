@@ -1,0 +1,18 @@
+# ===== AI 抽取服务（FastAPI）运行必需 =====
+# 来源：原仓库根目录 requirements.txt（原样保留以下 5 项）
+openai==3.16.2
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pydantic==2.13.5
+python-dotenv==1.2.3
+
+# ===== 离线抽取 / 评估脚本额外依赖 =====
+# 注意：原仓库根目录 requirements.txt 未包含以下依赖，但
+#   pipeline.py / html_table_preprocessor.py（HTML 解析）、
+#   attachment_parser.py（附件 Excel 解析）、部分评估脚本会用到。
+# 从本干净包复现「离线批处理 / 评估」时需一并安装。
+# 版本取自本机 .venv 实测（Python 3.14.7）。
+beautifulsoup4==4.15.0
+openpyxl==3.1.5
+xlrd==2.0.2
+httpx==0.28.1
