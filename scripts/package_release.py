@@ -100,12 +100,20 @@ docker start neo4j
 
 
 def _skip(rel: Path) -> bool:
-    if rel.name in EXCLUDE_FILES or rel.as_posix() in EXCLUDE_FILES or rel.suffix.lower() in EXCLUDE_SUFFIX:
+    """判断是否跳过。支持嵌套目录（如 frontend/node_modules/...）。"""
+    posix = rel.as_posix()
+    if rel.name in EXCLUDE_FILES or posix in EXCLUDE_FILES or rel.suffix.lower() in EXCLUDE_SUFFIX:
         return True
-    parts = rel.as_posix()
-    for excluded in EXCLUDE_DIRS:
-        if parts == excluded or parts.startswith(excluded + "/") or rel.name == excluded:
-            return True
+
+    simple = {d for d in EXCLUDE_DIRS if "/" not in d}
+    prefixed = {d for d in EXCLUDE_DIRS if "/" in d}
+
+    # 任意一层目录命中即跳过（node_modules / dist / __pycache__ ...）
+    if any(part in simple for part in rel.parts[:-1]):
+        return True
+    # 多段路径按前缀匹配（data/backups、test_data/official_samples ...）
+    if any(posix == d or posix.startswith(d + "/") for d in prefixed):
+        return True
     return False
 
 
