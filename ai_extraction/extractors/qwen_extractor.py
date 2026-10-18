@@ -82,6 +82,9 @@ class QwenExtractor(BaseExtractor):
                 messages=[{"role": "user", "content": EXTRACT_PROMPT.replace("{text}", text)}],
                 response_format={"type": "json_object"},
                 temperature=0,
+                stream=False,
+                # Qwen3 系列（含百炼托管部署）非流式调用必须显式关闭思考模式，否则 400
+                extra_body={"enable_thinking": False},
             )
             raw = resp.choices[0].message.content
         except Exception as e:
