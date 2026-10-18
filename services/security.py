@@ -135,7 +135,7 @@ def protect(
 
     - 带正确 X-Admin-Token：直通，不计配额
     - allow_anon=False：必须口令（用于删除/清空/图谱重建等破坏性接口）
-    - allow_anon=True ：按 per_ip_day / global_day 配额放行（控制 AI 费用）
+    - allow_anon=True ：按 per_ip_day / global_day 配额放行；传 0（或负数）表示不限制
     """
 
     def dependency(
@@ -159,7 +159,8 @@ def protect(
         if check_size:
             _precheck_content_length(request)
 
-        if per_ip_day:
+        # 0 或负数 = 不限制（本地/演示可关闭配额）
+        if per_ip_day and per_ip_day > 0:
             quota = storage.hit_quota("%s:ip" % bucket, ip, "day", per_ip_day)
             if not quota["allowed"]:
                 _log(bucket, request, ip, "quota-ip")
@@ -167,7 +168,7 @@ def protect(
                     status_code=429,
                     detail="调用次数已达上限（每 IP 每天 %d 次），请明天再试" % per_ip_day,
                 )
-        if global_day:
+        if global_day and global_day > 0:
             quota = storage.hit_quota("%s:all" % bucket, "all", "day", global_day)
             if not quota["allowed"]:
                 _log(bucket, request, ip, "quota-global")
