@@ -40,6 +40,9 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
 PUBLIC_MODE = _flag("PUBLIC_MODE", "0")
 ALLOW_ANON_UPLOAD = _flag("ALLOW_ANON_UPLOAD", "1")
 ALLOW_ANON_EXTRACT = _flag("ALLOW_ANON_EXTRACT", "1")
+# 是否允许匿名删除/清空（前端没有登录态；设为 1 时前端按钮可直接用，
+# 但公网开放期间任何人也能调用 —— 请配合备份使用，或改回 0 走 X-Admin-Token）
+ALLOW_ANON_DELETE = _flag("ALLOW_ANON_DELETE", "0")
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "100"))
 ALLOWED_UPLOAD_SUFFIX = {
@@ -51,6 +54,7 @@ QUOTA_UPLOAD_PER_IP_DAY = int(os.getenv("QUOTA_UPLOAD_PER_IP_DAY", "10"))
 QUOTA_EXTRACT_PER_IP_DAY = int(os.getenv("QUOTA_EXTRACT_PER_IP_DAY", "20"))
 QUOTA_EXTRACT_GLOBAL_DAY = int(os.getenv("QUOTA_EXTRACT_GLOBAL_PER_DAY", "300"))
 QUOTA_PARSE_PER_IP_DAY = int(os.getenv("QUOTA_PARSE_PER_IP_DAY", "100"))
+QUOTA_DELETE_PER_IP_DAY = int(os.getenv("QUOTA_DELETE_PER_IP_DAY", "50"))
 
 # ---------------- 日志（留痕，便于溯源与费用核算） ----------------
 
@@ -185,6 +189,7 @@ def describe() -> dict:
         "admin_token_configured": bool(ADMIN_TOKEN),
         "allow_anon_upload": ALLOW_ANON_UPLOAD,
         "allow_anon_extract": ALLOW_ANON_EXTRACT,
+        "allow_anon_delete": ALLOW_ANON_DELETE,
         "quota_upload_per_ip_per_day": QUOTA_UPLOAD_PER_IP_DAY,
         "quota_extract_per_ip_per_day": QUOTA_EXTRACT_PER_IP_DAY,
         "quota_extract_global_per_day": QUOTA_EXTRACT_GLOBAL_DAY,

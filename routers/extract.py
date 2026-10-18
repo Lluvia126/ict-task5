@@ -10,7 +10,9 @@ from services.ai_adapter import extract as ai_extract, check_ai_service
 from services.export_service import enrich_extraction
 from services import graph_sync
 from services.security import (
+    ALLOW_ANON_DELETE,
     ALLOW_ANON_EXTRACT,
+    QUOTA_DELETE_PER_IP_DAY,
     QUOTA_EXTRACT_GLOBAL_DAY,
     QUOTA_EXTRACT_PER_IP_DAY,
     QUOTA_PARSE_PER_IP_DAY,
@@ -131,7 +133,11 @@ def get_one_extraction(announcement_id: str):
 
 
 @router.delete("/extractions/{announcement_id}",
-               dependencies=[Depends(protect("delete", allow_anon=False))])
+               dependencies=[Depends(protect(
+                   "delete",
+                   allow_anon=ALLOW_ANON_DELETE,
+                   per_ip_day=QUOTA_DELETE_PER_IP_DAY,
+               ))])
 def api_delete_extraction(announcement_id: str):
     """删除单条抽取结果，并同步删除它在图谱中的关系。"""
     deleted = delete_extraction(announcement_id)
@@ -147,7 +153,11 @@ def api_delete_extraction(announcement_id: str):
 
 
 @router.delete("/extractions",
-               dependencies=[Depends(protect("clear", allow_anon=False))])
+               dependencies=[Depends(protect(
+                   "clear",
+                   allow_anon=ALLOW_ANON_DELETE,
+                   per_ip_day=QUOTA_DELETE_PER_IP_DAY,
+               ))])
 def api_clear_extractions():
     """清空所有抽取结果（只清数据，不删表和库），并同步清掉图谱里的对应关系。"""
     ids = list_announcement_ids()
